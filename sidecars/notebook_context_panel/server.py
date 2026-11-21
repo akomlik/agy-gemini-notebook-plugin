@@ -20,6 +20,12 @@ REPO_ROOT = SIDECAR_DIR.parent.parent
 # Ensure `agy_gemini_notebook` and local `.venv` packages are importable even when
 # launched directly via system `python3 sidecars/notebook_context_panel/server.py`.
 _VENV_PY = REPO_ROOT / ".venv" / "bin" / "python"
+if (
+    _VENV_PY.is_file()
+    and sys.executable != str(_VENV_PY)
+    and Path(sys.prefix).resolve() != (REPO_ROOT / ".venv").resolve()
+):
+    os.execv(str(_VENV_PY), [str(_VENV_PY), *sys.argv])
 if _VENV_PY.is_file():
     sys.executable = str(_VENV_PY)
 if str(REPO_ROOT / "src") not in sys.path:
@@ -528,7 +534,10 @@ class SidecarRequestHandler(SimpleHTTPRequestHandler):
     def log_message(self, format: str, *args: Any) -> None:
         if os.environ.get("SIDECAR_QUIET") == "1":
             return
-        super().log_message(format, *args)
+        try:
+            super().log_message(format, *args)
+        except OSError:
+            pass
 
     def _is_allowed_origin(self) -> tuple[bool, str | None]:
         """Validate `Origin` header to block cross-origin CSRF/CORS requests from external sites."""

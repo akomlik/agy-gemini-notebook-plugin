@@ -1,6 +1,6 @@
 # 📓 Gemini Notebook by Chryzalide (`agy-gemini-notebook-plugin`)
 
-![Version](https://img.shields.io/badge/version-v1.0.7-blue)
+![Version](https://img.shields.io/badge/version-v1.0.8-blue)
 ![Python](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-green)
 [![Author](https://img.shields.io/badge/author-Souryan%20Aug%C3%A9-purple)](https://souryan-auge.fr/)
@@ -311,6 +311,15 @@ agy-gemini-notebook sync README.md docs/architecture.md
 ## 📦 Versioning & Changelog
 
 This project follows strict, transparent versioning. **Every version update and change made to the repository must be documented, explained, and recorded in this section of `README.md`** (and kept synchronized across `pyproject.toml`, `plugin.json`, and `src/agy_gemini_notebook/__init__.py`).
+
+### `v1.0.8` (2026-11-21) — Sidecar `.venv` Interpreter Re-Exec & Broken-Pipe Log Resilience
+
+- **Native `.venv` Interpreter Re-Exec for Sidecar Startup (`sidecars/notebook_context_panel/server.py`)**:
+  - **Why**: When Antigravity 2 launches `server.py` using the system `python3` binary (for example, macOS CommandLineTools Python 3.9 vs. a `.venv` created with a newer Python minor version), merely appending `.venv/lib/python*/site-packages` to `sys.path` fails whenever C-extension wheels (`pydantic_core`, `rookiepy`, etc.) target the `.venv` Python ABI rather than the system interpreter ABI.
+  - **How**: Added an early `os.execv` handoff at the top of `server.py` so that when `server.py` is started outside `.venv`, the sidecar process immediately replaces itself with `.venv/bin/python` while preserving `sys.argv`.
+- **Resilient Sidecar Request Logging & `.gitignore` Hygiene (`sidecars/notebook_context_panel/server.py`, `.gitignore`)**:
+  - **Why**: Backgrounded or detached sidecar HTTP processes can raise `OSError` (`[Errno 32] Broken pipe` / `[Errno 5] Input/output error`) inside `SimpleHTTPRequestHandler.log_message()` if the parent host closes `stderr`, aborting an otherwise valid HTTP response; additionally, local `uv sync` runs generate an untracked `uv.lock`.
+  - **How**: Wrapped `super().log_message(format, *args)` in `try ... except OSError: pass` and added `uv.lock` to `.gitignore`.
 
 ### `v1.0.7` (2026-11-07) — Comprehensive Security Hardening (Cloudflare 6-Phase Security Audit Remediation)
 
